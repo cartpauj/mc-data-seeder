@@ -57,9 +57,11 @@ class MembershipSeeder extends AbstractSeeder {
      * Initialize seeder
      */
     protected function init() {
-        $this->key = 'membercore_memberships';
-        $this->name = __('MemberCore Memberships & Groups', 'membercore-data-seeder');
-        $this->description = __('Creates MemberCore memberships and membership groups with upgrade paths.', 'membercore-data-seeder');
+        $prefix = \MCDS\PluginConfig::get_prefix();
+        $plugin_name = \MCDS\PluginConfig::get_active_plugin_name();
+        $this->key = $prefix . '_memberships';
+        $this->name = sprintf(__('%s Memberships & Groups', 'membercore-data-seeder'), $plugin_name);
+        $this->description = sprintf(__('Creates %s memberships and membership groups with upgrade paths.', 'membercore-data-seeder'), $plugin_name);
         $this->default_count = 1; // We'll calculate this dynamically
         $this->default_batch_size = 1; // Process all in one batch
 
@@ -104,7 +106,8 @@ class MembershipSeeder extends AbstractSeeder {
      * Subscriptions depend on memberships, so resetting memberships should also reset subscriptions
      */
     public function get_dependents() {
-        return ['membercore_subscriptions'];
+        $prefix = \MCDS\PluginConfig::get_prefix();
+        return [$prefix . '_subscriptions'];
     }
 
     /**
@@ -118,11 +121,12 @@ class MembershipSeeder extends AbstractSeeder {
      * Override to inject calculated count and batch_size
      */
     public function validate_settings($settings) {
-        // Check if MemberCore is active
-        if (!class_exists('MecoUser')) {
+        // Check if the active plugin is installed
+        if (!\MCDS\PluginConfig::is_active_plugin_installed()) {
+            $plugin_name = \MCDS\PluginConfig::get_active_plugin_name();
             return new \WP_Error(
-                'membercore_not_active',
-                __('MemberCore plugin is not installed or activated. Please install and activate MemberCore before running this seeder.', 'membercore-data-seeder')
+                'plugin_not_active',
+                sprintf(__('%s plugin is not installed or activated. Please install and activate %s before running this seeder.', 'membercore-data-seeder'), $plugin_name, $plugin_name)
             );
         }
 
@@ -216,7 +220,7 @@ class MembershipSeeder extends AbstractSeeder {
                 'closed', // ping_status
                 '', // post_password
                 $group_name,
-                'membercoregroup' // post_type
+                \MCDS\PluginConfig::get_post_type('group') // post_type
             );
         }
 
@@ -245,11 +249,11 @@ class MembershipSeeder extends AbstractSeeder {
                 $group_id = $group_ids_map[$i];
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, '_mcds_seeded', '1');
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, '_mcds_seeder_key', $this->key);
-                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, '_meco_group_is_upgrade_path', '1');
-                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, '_meco_group_upgrade_path_reset_period', '1');
-                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, '_meco_group_pricing_page_disabled', '0');
-                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, '_meco_group_disable_change_plan_popup', '0');
-                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, '_meco_group_theme', 'minimal_gray_horizontal.css');
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, \MCDS\PluginConfig::get_meta_key('group_is_upgrade_path'), '1');
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, \MCDS\PluginConfig::get_meta_key('group_upgrade_path_reset_period'), '1');
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, \MCDS\PluginConfig::get_meta_key('group_pricing_page_disabled'), '0');
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, \MCDS\PluginConfig::get_meta_key('group_disable_change_plan_popup'), '0');
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, \MCDS\PluginConfig::get_meta_key('group_theme'), 'minimal_gray_horizontal.css');
             }
         }
 
@@ -289,7 +293,7 @@ class MembershipSeeder extends AbstractSeeder {
                     'closed',
                     '',
                     $membership_name,
-                    'membercoreproduct'
+                    \MCDS\PluginConfig::get_post_type('product')
                 );
 
                 // Store pricing info to add as meta after insert
@@ -332,7 +336,7 @@ class MembershipSeeder extends AbstractSeeder {
                 'closed',
                 '',
                 $membership_name,
-                'membercoreproduct'
+                \MCDS\PluginConfig::get_post_type('product')
             );
 
             $standalone_memberships[] = [
@@ -366,12 +370,12 @@ class MembershipSeeder extends AbstractSeeder {
             foreach ($group_memberships as $membership) {
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, '_mcds_seeded', '1');
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, '_mcds_seeder_key', $this->key);
-                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, '_meco_product_price', $membership['price']);
-                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, '_meco_product_period', $membership['period']);
-                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, '_meco_product_period_type', $membership['period_type']);
-                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, '_meco_product_signup_button_text', 'Sign Up');
-                $meta_values[] = $wpdb->prepare("(%d, %s, %d)", $current_id, '_meco_group_id', $membership['group_id']);
-                $meta_values[] = $wpdb->prepare("(%d, %s, %d)", $current_id, '_meco_group_order', $membership['order']);
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_price'), $membership['price']);
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_period'), $membership['period']);
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_period_type'), $membership['period_type']);
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_signup_button_text'), 'Sign Up');
+                $meta_values[] = $wpdb->prepare("(%d, %s, %d)", $current_id, \MCDS\PluginConfig::get_meta_key('group_id'), $membership['group_id']);
+                $meta_values[] = $wpdb->prepare("(%d, %s, %d)", $current_id, \MCDS\PluginConfig::get_meta_key('group_order'), $membership['order']);
                 $current_id++;
             }
 
@@ -379,12 +383,12 @@ class MembershipSeeder extends AbstractSeeder {
             foreach ($standalone_memberships as $membership) {
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, '_mcds_seeded', '1');
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, '_mcds_seeder_key', $this->key);
-                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, '_meco_product_price', $membership['price']);
-                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, '_meco_product_period', $membership['period']);
-                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, '_meco_product_period_type', $membership['period_type']);
-                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, '_meco_product_signup_button_text', 'Sign Up');
-                $meta_values[] = $wpdb->prepare("(%d, %s, %d)", $current_id, '_meco_group_id', 0);
-                $meta_values[] = $wpdb->prepare("(%d, %s, %d)", $current_id, '_meco_group_order', 0);
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_price'), $membership['price']);
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_period'), $membership['period']);
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_period_type'), $membership['period_type']);
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_signup_button_text'), 'Sign Up');
+                $meta_values[] = $wpdb->prepare("(%d, %s, %d)", $current_id, \MCDS\PluginConfig::get_meta_key('group_id'), 0);
+                $meta_values[] = $wpdb->prepare("(%d, %s, %d)", $current_id, \MCDS\PluginConfig::get_meta_key('group_order'), 0);
                 $current_id++;
             }
         }
@@ -402,8 +406,13 @@ class MembershipSeeder extends AbstractSeeder {
             }
         }
 
-        // Clear all MemberCore transient caches so new items show up immediately
-        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_meco_all_models_for_class%' OR option_name LIKE '_transient_timeout_meco_all_models_for_class%'");
+        // Clear all transient caches so new items show up immediately
+        $prefix = \MCDS\PluginConfig::get_prefix();
+        $wpdb->query($wpdb->prepare(
+            "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",
+            '_transient_' . $prefix . '_all_models_for_class%',
+            '_transient_timeout_' . $prefix . '_all_models_for_class%'
+        ));
 
         // Return processed = 1 to match our count setting of 1
         // (We process everything in a single batch)

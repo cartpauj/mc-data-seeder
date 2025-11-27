@@ -278,7 +278,8 @@ class UserSeeder extends AbstractSeeder {
     protected function init() {
         $this->key = 'wp_users';
         $this->name = __('WordPress Users', 'membercore-data-seeder');
-        $this->description = __('Creates WordPress users with random usernames, names, emails, bios, and all default WP user fields. If MemberCore is active, also populates address fields with addresses from around the world. If MemberCore Directory is active, assigns profile avatars to users.', 'membercore-data-seeder');
+        $plugin_name = \MCDS\PluginConfig::get_active_plugin_name();
+        $this->description = sprintf(__('Creates WordPress users with random usernames, names, emails, bios, and all default WP user fields. If %s is active, also populates address fields with addresses from around the world. If %s Directory is active, assigns profile avatars to users.', 'membercore-data-seeder'), $plugin_name, $plugin_name);
         $this->default_count = 50;
         $this->default_batch_size = 200;
 
@@ -308,10 +309,10 @@ class UserSeeder extends AbstractSeeder {
     }
 
     /**
-     * Check if MemberCore is active
+     * Check if the active plugin is installed
      */
-    private function is_membercore_active() {
-        return class_exists('MecoUser');
+    private function is_plugin_active() {
+        return \MCDS\PluginConfig::is_active_plugin_installed();
     }
 
     /**
@@ -371,7 +372,7 @@ class UserSeeder extends AbstractSeeder {
         global $wpdb;
 
         $user_role = !empty($settings['user_role']) ? $settings['user_role'] : 'subscriber';
-        $membercore_active = $this->is_membercore_active();
+        $plugin_active = $this->is_plugin_active();
 
         // Prepare bulk inserts - generate all data first
         $user_data = [];
@@ -469,16 +470,16 @@ class UserSeeder extends AbstractSeeder {
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $user_id, 'description', $data['bio']);
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $user_id, '_mcds_seeder_key', $this->key);
 
-                // If MemberCore is active, add address fields
-                if ($membercore_active) {
+                // If plugin is active, add address fields
+                if ($plugin_active) {
                     $address = $this->addresses[array_rand($this->addresses)];
 
-                    $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $user_id, 'meco-address-one', $address['street1']);
-                    $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $user_id, 'meco-address-two', $address['street2']);
-                    $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $user_id, 'meco-address-city', $address['city']);
-                    $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $user_id, 'meco-address-state', $address['state']);
-                    $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $user_id, 'meco-address-zip', $address['zip']);
-                    $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $user_id, 'meco-address-country', $address['country']);
+                    $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $user_id, \MCDS\PluginConfig::get_meta_key('address_one'), $address['street1']);
+                    $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $user_id, \MCDS\PluginConfig::get_meta_key('address_two'), $address['street2']);
+                    $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $user_id, \MCDS\PluginConfig::get_meta_key('address_city'), $address['city']);
+                    $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $user_id, \MCDS\PluginConfig::get_meta_key('address_state'), $address['state']);
+                    $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $user_id, \MCDS\PluginConfig::get_meta_key('address_zip'), $address['zip']);
+                    $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $user_id, \MCDS\PluginConfig::get_meta_key('address_country'), $address['country']);
                 }
             }
 
@@ -514,12 +515,12 @@ class UserSeeder extends AbstractSeeder {
             return; // No avatars available
         }
 
-        // Check if membercore-directory table exists
-        $mcdir_table = $wpdb->prefix . 'mcdir_profile_images';
-        $mcdir_active = $wpdb->get_var("SHOW TABLES LIKE '{$mcdir_table}'") === $mcdir_table;
+        // Check if directory table exists
+        $dir_table = \MCDS\PluginConfig::get_directory_table();
+        $dir_active = $wpdb->get_var("SHOW TABLES LIKE '{$dir_table}'") === $dir_table;
 
-        if (!$mcdir_active) {
-            return; // membercore-directory not installed
+        if (!$dir_active) {
+            return; // directory plugin not installed
         }
 
         // Get WordPress uploads directory
@@ -567,7 +568,7 @@ class UserSeeder extends AbstractSeeder {
 
         // Bulk insert profile images
         if (!empty($profile_images_values)) {
-            $sql = "INSERT INTO {$mcdir_table} (user_id, url, type, status, size, created_at, updated_at)
+            $sql = "INSERT INTO {$dir_table} (user_id, url, type, status, size, created_at, updated_at)
                     VALUES " . implode(', ', $profile_images_values);
             $wpdb->query($sql);
         }
@@ -583,11 +584,11 @@ class UserSeeder extends AbstractSeeder {
             return;
         }
 
-        // Check if membercore-directory table exists
-        $mcdir_table = $wpdb->prefix . 'mcdir_profile_images';
-        $mcdir_active = $wpdb->get_var("SHOW TABLES LIKE '{$mcdir_table}'") === $mcdir_table;
+        // Check if directory table exists
+        $dir_table = \MCDS\PluginConfig::get_directory_table();
+        $dir_active = $wpdb->get_var("SHOW TABLES LIKE '{$dir_table}'") === $dir_table;
 
-        if (!$mcdir_active) {
+        if (!$dir_active) {
             return;
         }
 
@@ -595,7 +596,7 @@ class UserSeeder extends AbstractSeeder {
 
         // Get profile image URLs before deleting records
         $profile_images = $wpdb->get_results($wpdb->prepare(
-            "SELECT url FROM {$mcdir_table} WHERE user_id IN ($ids_placeholder)",
+            "SELECT url FROM {$dir_table} WHERE user_id IN ($ids_placeholder)",
             ...$user_ids
         ));
 
@@ -610,7 +611,7 @@ class UserSeeder extends AbstractSeeder {
 
         // Delete profile image records
         $wpdb->query($wpdb->prepare(
-            "DELETE FROM {$mcdir_table} WHERE user_id IN ($ids_placeholder)",
+            "DELETE FROM {$dir_table} WHERE user_id IN ($ids_placeholder)",
             ...$user_ids
         ));
     }

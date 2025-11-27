@@ -77,7 +77,9 @@ class Admin {
                 'processing' => __('Processing...', 'membercore-data-seeder'),
                 'completed' => __('Completed!', 'membercore-data-seeder'),
                 'error_occurred' => __('Error occurred', 'membercore-data-seeder'),
-                'resetting' => __('Resetting...', 'membercore-data-seeder')
+                'resetting' => __('Resetting...', 'membercore-data-seeder'),
+                'saving' => __('Saving...', 'membercore-data-seeder'),
+                'save_plugin' => __('Save Plugin Selection', 'membercore-data-seeder')
             ]
         ]);
     }
@@ -96,12 +98,49 @@ class Admin {
             }
         }
 
+        // Get plugin configuration
+        $active_plugin = \MCDS\PluginConfig::get_active_plugin();
+        $installed_plugins = \MCDS\PluginConfig::detect_installed_plugins();
+        $all_plugins = \MCDS\PluginConfig::get_plugins();
+
         ?>
         <div class="wrap mcds-admin-page">
             <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
 
             <div class="mcds-intro">
                 <p><?php _e('Use this tool to seed your database with test data. Each seeder can be configured and run independently. Progress is tracked so you can safely navigate away and return later.', 'membercore-data-seeder'); ?></p>
+            </div>
+
+            <div class="mcds-plugin-selector">
+                <h2><?php _e('Target Plugin', 'membercore-data-seeder'); ?></h2>
+                <p class="description"><?php _e('Select which plugin you want to seed data for. The seeder will use the appropriate prefixes and database tables for the selected plugin.', 'membercore-data-seeder'); ?></p>
+
+                <?php if (empty($installed_plugins)): ?>
+                    <div class="notice notice-error inline">
+                        <p><?php _e('No supported plugins detected. Please install MemberCore, MemberPress, or WishList LMS to use this seeder.', 'membercore-data-seeder'); ?></p>
+                    </div>
+                <?php else: ?>
+                    <select id="mcds-plugin-select" name="mcds_plugin">
+                        <?php foreach ($all_plugins as $key => $plugin): ?>
+                            <option
+                                value="<?php echo esc_attr($key); ?>"
+                                <?php selected($active_plugin, $key); ?>
+                                <?php disabled(!in_array($key, $installed_plugins)); ?>
+                            >
+                                <?php echo esc_html($plugin['name']); ?>
+                                <?php if (!in_array($key, $installed_plugins)): ?>
+                                    <?php _e('(Not Installed)', 'membercore-data-seeder'); ?>
+                                <?php endif; ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button type="button" id="mcds-save-plugin" class="button button-primary">
+                        <?php _e('Save Plugin Selection', 'membercore-data-seeder'); ?>
+                    </button>
+                    <span class="mcds-plugin-saved" style="display:none; color: #46b450; margin-left: 10px;">
+                        <?php _e('✓ Saved', 'membercore-data-seeder'); ?>
+                    </span>
+                <?php endif; ?>
             </div>
 
             <?php if (empty($seeders)): ?>

@@ -13,11 +13,21 @@ use MCDS\AbstractSeeder;
 class SubscriptionSeeder extends AbstractSeeder {
 
     /**
+     * Get the membership seeder key for the current plugin
+     */
+    private function get_membership_seeder_key() {
+        $prefix = \MCDS\PluginConfig::get_prefix();
+        return $prefix . '_memberships';
+    }
+
+    /**
      * Initialize seeder
      */
     protected function init() {
-        $this->key = 'membercore_subscriptions';
-        $this->name = __('MemberCore Subscriptions & Transactions', 'membercore-data-seeder');
+        $prefix = \MCDS\PluginConfig::get_prefix();
+        $plugin_name = \MCDS\PluginConfig::get_active_plugin_name();
+        $this->key = $prefix . '_subscriptions';
+        $this->name = sprintf(__('%s Subscriptions & Transactions', 'membercore-data-seeder'), $plugin_name);
         $this->description = __('Creates subscriptions and transactions for seeded users. One-time/lifetime memberships only create transactions. Recurring memberships create subscriptions with realistic transaction history. Respects upgrade path group constraints.', 'membercore-data-seeder');
         $this->default_count = 100; // Will be overridden with actual user count
         $this->default_batch_size = 100; // Process 100 users at a time
@@ -87,11 +97,12 @@ class SubscriptionSeeder extends AbstractSeeder {
      * Override to inject calculated count based on seeded users
      */
     public function validate_settings($settings) {
-        // Check if MemberCore is active
-        if (!class_exists('MecoUser')) {
+        // Check if the active plugin is installed
+        if (!\MCDS\PluginConfig::is_active_plugin_installed()) {
+            $plugin_name = \MCDS\PluginConfig::get_active_plugin_name();
             return new \WP_Error(
-                'membercore_not_active',
-                __('MemberCore plugin is not installed or activated. Please install and activate MemberCore before running this seeder.', 'membercore-data-seeder')
+                'plugin_not_active',
+                sprintf(__('%s plugin is not installed or activated. Please install and activate %s before running this seeder.', 'membercore-data-seeder'), $plugin_name, $plugin_name)
             );
         }
 
@@ -176,9 +187,10 @@ class SubscriptionSeeder extends AbstractSeeder {
         $date_range_days = intval($settings['date_range_days'] ?? 365);
 
         // Get MemberCore table names
-        $subscriptions_table = $wpdb->prefix . 'meco_subscriptions';
-        $transactions_table = $wpdb->prefix . 'meco_transactions';
-        $transaction_meta_table = $wpdb->prefix . 'meco_transaction_meta';
+        $table_prefix = \MCDS\PluginConfig::get_table_prefix();
+        $subscriptions_table = $wpdb->prefix . $table_prefix . '_subscriptions';
+        $transactions_table = $wpdb->prefix . $table_prefix . '_transactions';
+        $transaction_meta_table = $wpdb->prefix . $table_prefix . '_transaction_meta';
 
         // Step 1: Get batch of seeded users (using LIMIT and OFFSET)
         $seeded_users = $wpdb->get_col($wpdb->prepare(
@@ -210,19 +222,25 @@ class SubscriptionSeeder extends AbstractSeeder {
              FROM {$wpdb->posts} p
              INNER JOIN {$wpdb->postmeta} pm_seeded ON p.ID = pm_seeded.post_id
                 AND pm_seeded.meta_key = '_mcds_seeder_key'
-                AND pm_seeded.meta_value = 'membercore_memberships'
+                AND pm_seeded.meta_value = %s
              LEFT JOIN {$wpdb->postmeta} pm_group ON p.ID = pm_group.post_id
-                AND pm_group.meta_key = '_meco_group_id'
+                AND pm_group.meta_key = %s
              LEFT JOIN {$wpdb->postmeta} pm_price ON p.ID = pm_price.post_id
-                AND pm_price.meta_key = '_meco_product_price'
+                AND pm_price.meta_key = %s
              LEFT JOIN {$wpdb->postmeta} pm_period ON p.ID = pm_period.post_id
-                AND pm_period.meta_key = '_meco_product_period'
+                AND pm_period.meta_key = %s
              LEFT JOIN {$wpdb->postmeta} pm_period_type ON p.ID = pm_period_type.post_id
-                AND pm_period_type.meta_key = '_meco_product_period_type'
+                AND pm_period_type.meta_key = %s
              LEFT JOIN {$wpdb->postmeta} pm_is_upgrade ON pm_group.meta_value = pm_is_upgrade.post_id
-                AND pm_is_upgrade.meta_key = '_meco_group_is_upgrade_path'
+                AND pm_is_upgrade.meta_key = %s
              WHERE p.post_type = %s AND p.post_status = %s",
-            'membercoreproduct',
+            $this->get_membership_seeder_key(),
+            \MCDS\PluginConfig::get_meta_key('group_id'),
+            \MCDS\PluginConfig::get_meta_key('product_price'),
+            \MCDS\PluginConfig::get_meta_key('product_period'),
+            \MCDS\PluginConfig::get_meta_key('product_period_type'),
+            \MCDS\PluginConfig::get_meta_key('group_is_upgrade_path'),
+            \MCDS\PluginConfig::get_post_type('product'),
             'publish'
         ));
 
@@ -552,9 +570,13 @@ class SubscriptionSeeder extends AbstractSeeder {
 
         // Step 10: Update members table using MemberCore's built-in function
         // Call MemberCore's update_member_data_static for each user in the batch
-        if (class_exists('MecoUser') && method_exists('MecoUser', 'update_member_data_static')) {
-            foreach ($seeded_users as $user_id) {
-                \MecoUser::update_member_data_static($user_id);
+        $config = \MCDS\PluginConfig::get_active_config();
+        if ($config && class_exists($config['class'])) {
+            $class_name = $config['class'];
+            if (method_exists($class_name, 'update_member_data_static')) {
+                foreach ($seeded_users as $user_id) {
+                    $class_name::update_member_data_static($user_id);
+                }
             }
         }
 
@@ -687,12 +709,13 @@ class SubscriptionSeeder extends AbstractSeeder {
     public function get_reset_count() {
         global $wpdb;
 
-        $transaction_meta_table = $wpdb->prefix . 'meco_transaction_meta';
+        $table_prefix = \MCDS\PluginConfig::get_table_prefix();
+        $transaction_meta_table = $wpdb->prefix . $table_prefix . '_transaction_meta';
 
         // Count affected users (we'll reset one user at a time for progress)
         $count = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(DISTINCT t.user_id)
-             FROM {$wpdb->prefix}meco_transactions t
+             FROM {$transactions_table} t
              INNER JOIN {$transaction_meta_table} tm ON t.id = tm.transaction_id
              WHERE tm.meta_key = %s AND tm.meta_value = %s",
             '_mcds_seeder_key',
@@ -712,9 +735,10 @@ class SubscriptionSeeder extends AbstractSeeder {
     public function reset_batch($offset, $limit) {
         global $wpdb;
 
-        $transaction_meta_table = $wpdb->prefix . 'meco_transaction_meta';
-        $transactions_table = $wpdb->prefix . 'meco_transactions';
-        $subscriptions_table = $wpdb->prefix . 'meco_subscriptions';
+        $table_prefix = \MCDS\PluginConfig::get_table_prefix();
+        $transaction_meta_table = $wpdb->prefix . $table_prefix . '_transaction_meta';
+        $transactions_table = $wpdb->prefix . $table_prefix . '_transactions';
+        $subscriptions_table = $wpdb->prefix . $table_prefix . '_subscriptions';
 
         // Get batch of affected users (always use offset 0 since we're deleting as we go)
         $affected_users = $wpdb->get_col($wpdb->prepare(
@@ -777,10 +801,14 @@ class SubscriptionSeeder extends AbstractSeeder {
                 ));
             }
 
-            // Sync members table for affected users using MemberCore's function
-            if (class_exists('MecoUser') && method_exists('MecoUser', 'update_member_data_static')) {
-                foreach ($affected_users as $user_id) {
-                    \MecoUser::update_member_data_static($user_id);
+            // Sync members table for affected users
+            $config = \MCDS\PluginConfig::get_active_config();
+            if ($config && class_exists($config['class'])) {
+                $class_name = $config['class'];
+                if (method_exists($class_name, 'update_member_data_static')) {
+                    foreach ($affected_users as $user_id) {
+                        $class_name::update_member_data_static($user_id);
+                    }
                 }
             }
         }

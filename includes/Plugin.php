@@ -51,6 +51,9 @@ class Plugin {
         // Load text domain
         add_action('init', [$this, 'load_textdomain']);
 
+        // Auto-detect active plugin if not set
+        add_action('admin_init', [$this, 'maybe_auto_detect_plugin']);
+
         // Initialize components
         $this->registry = new SeederRegistry();
         $this->ajax = new AjaxHandler($this->registry);
@@ -80,6 +83,18 @@ class Plugin {
     }
 
     /**
+     * Auto-detect active plugin if not already set
+     */
+    public function maybe_auto_detect_plugin() {
+        $current = PluginConfig::get_active_plugin();
+
+        // If current selection is not installed, auto-detect
+        if (!PluginConfig::is_active_plugin_installed()) {
+            PluginConfig::auto_detect_plugin();
+        }
+    }
+
+    /**
      * Filter avatar URL to use seeded avatar from membercore-directory if available
      */
     public function get_seeded_avatar_url($url, $id_or_email, $args) {
@@ -98,9 +113,9 @@ class Plugin {
         }
 
         if ($user && is_object($user)) {
-            $mcdir_table = $wpdb->prefix . 'mcdir_profile_images';
+            $dir_table = PluginConfig::get_directory_table();
             $avatar_url = $wpdb->get_var($wpdb->prepare(
-                "SELECT url FROM {$mcdir_table} WHERE user_id = %d AND type = 'avatar' LIMIT 1",
+                "SELECT url FROM {$dir_table} WHERE user_id = %d AND type = 'avatar' LIMIT 1",
                 $user->ID
             ));
 
@@ -131,9 +146,9 @@ class Plugin {
         }
 
         if ($user && is_object($user)) {
-            $mcdir_table = $wpdb->prefix . 'mcdir_profile_images';
+            $dir_table = PluginConfig::get_directory_table();
             $avatar_url = $wpdb->get_var($wpdb->prepare(
-                "SELECT url FROM {$mcdir_table} WHERE user_id = %d AND type = 'avatar' LIMIT 1",
+                "SELECT url FROM {$dir_table} WHERE user_id = %d AND type = 'avatar' LIMIT 1",
                 $user->ID
             ));
 

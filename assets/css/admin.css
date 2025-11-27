@@ -18,6 +18,46 @@
     margin: 0.5em 0;
 }
 
+.mcds-plugin-selector {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 4px;
+}
+
+.mcds-plugin-selector h2 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.mcds-plugin-selector .description {
+    margin: 0 0 15px 0;
+    color: #646970;
+    font-size: 13px;
+}
+
+.mcds-plugin-selector select {
+    padding: 6px 10px;
+    font-size: 14px;
+    line-height: 1.5;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    margin-right: 10px;
+    min-width: 250px;
+}
+
+.mcds-plugin-selector select:focus {
+    border-color: #2271b1;
+    outline: 1px solid #2271b1;
+    outline-offset: -1px;
+}
+
+.mcds-plugin-saved {
+    font-weight: 600;
+}
+
 .mcds-actions {
     margin: 20px 0;
 }

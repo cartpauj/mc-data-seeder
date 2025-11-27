@@ -18,6 +18,9 @@
         },
 
         bindEvents: function() {
+            // Plugin selection
+            $(document).on('click', '#mcds-save-plugin', this.handleSavePlugin.bind(this));
+
             // Start seeder
             $(document).on('submit', '.mcds-seeder-form', this.handleStartSeeder.bind(this));
 
@@ -29,6 +32,48 @@
 
             // Reset all
             $(document).on('click', '.mcds-reset-all', this.handleResetAll.bind(this));
+        },
+
+        handleSavePlugin: function(e) {
+            e.preventDefault();
+
+            const $button = $(e.currentTarget);
+            const $select = $('#mcds-plugin-select');
+            const plugin = $select.val();
+            const $saved = $('.mcds-plugin-saved');
+
+            $button.prop('disabled', true).text(mcdsAdmin.strings.saving || 'Saving...');
+
+            $.ajax({
+                url: mcdsAdmin.ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'mcds_save_plugin',
+                    nonce: mcdsAdmin.nonce,
+                    plugin: plugin
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $saved.fadeIn();
+                        setTimeout(function() {
+                            $saved.fadeOut();
+                        }, 2000);
+
+                        // Reload page after 1 second to refresh seeder list with new prefixes
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        alert(response.data.message || mcdsAdmin.strings.error);
+                    }
+                },
+                error: function() {
+                    alert(mcdsAdmin.strings.error);
+                },
+                complete: function() {
+                    $button.prop('disabled', false).text(mcdsAdmin.strings.save_plugin || 'Save Plugin Selection');
+                }
+            });
         },
 
         checkRunningProcesses: function() {

@@ -25,6 +25,7 @@ class AjaxHandler {
         $this->tracker = new ProgressTracker();
 
         // Register AJAX actions
+        add_action('wp_ajax_mcds_save_plugin', [$this, 'save_plugin']);
         add_action('wp_ajax_mcds_start_seeder', [$this, 'start_seeder']);
         add_action('wp_ajax_mcds_process_batch', [$this, 'process_batch']);
         add_action('wp_ajax_mcds_get_status', [$this, 'get_status']);
@@ -37,6 +38,39 @@ class AjaxHandler {
         add_action('wp_ajax_mcds_start_reset_all', [$this, 'start_reset_all']);
         add_action('wp_ajax_mcds_process_reset_all_batch', [$this, 'process_reset_all_batch']);
         add_action('wp_ajax_mcds_reset_all', [$this, 'reset_all']);
+    }
+
+    /**
+     * Save plugin selection
+     */
+    public function save_plugin() {
+        check_ajax_referer('mcds_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Insufficient permissions', 'membercore-data-seeder')]);
+        }
+
+        $plugin_key = sanitize_text_field($_POST['plugin'] ?? '');
+
+        if (empty($plugin_key)) {
+            wp_send_json_error(['message' => __('Invalid plugin selection', 'membercore-data-seeder')]);
+        }
+
+        $config = PluginConfig::get_config($plugin_key);
+        if (!$config) {
+            wp_send_json_error(['message' => __('Invalid plugin', 'membercore-data-seeder')]);
+        }
+
+        // Check if plugin is installed
+        if (!class_exists($config['class'])) {
+            wp_send_json_error(['message' => sprintf(__('%s is not installed or activated', 'membercore-data-seeder'), $config['name'])]);
+        }
+
+        PluginConfig::set_active_plugin($plugin_key);
+
+        wp_send_json_success([
+            'message' => sprintf(__('Plugin set to %s', 'membercore-data-seeder'), $config['name'])
+        ]);
     }
 
     /**
