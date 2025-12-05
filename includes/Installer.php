@@ -46,6 +46,9 @@ class Installer {
         // Set plugin version
         update_option('mcds_version', MCDS_VERSION);
         update_option('mcds_installed', true);
+
+        // Clear the tables verified transient to force a recheck
+        delete_transient('mcds_tables_verified');
     }
 
     /**

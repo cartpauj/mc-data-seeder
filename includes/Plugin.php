@@ -51,6 +51,9 @@ class Plugin {
         // Load text domain
         add_action('init', [$this, 'load_textdomain']);
 
+        // Ensure database tables exist
+        add_action('init', [$this, 'maybe_create_tables']);
+
         // Auto-detect active plugin if not set
         add_action('admin_init', [$this, 'maybe_auto_detect_plugin']);
 
@@ -80,6 +83,29 @@ class Plugin {
             false,
             dirname(plugin_basename(MCDS_PLUGIN_FILE)) . '/languages'
         );
+    }
+
+    /**
+     * Check and create database tables if needed (uses transient to avoid checking on every page load)
+     */
+    public function maybe_create_tables() {
+        // Check if we've verified tables recently (cache for 1 week)
+        $tables_verified = get_transient('mcds_tables_verified');
+
+        if ($tables_verified) {
+            return;
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'mcds_progress';
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'") === $table_name;
+
+        if (!$table_exists) {
+            Installer::create_progress_table();
+        }
+
+        // Set transient for 1 week
+        set_transient('mcds_tables_verified', true, WEEK_IN_SECONDS);
     }
 
     /**

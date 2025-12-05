@@ -18,22 +18,6 @@ class ProgressTracker {
     public function __construct() {
         global $wpdb;
         $this->table_name = $wpdb->prefix . 'mcds_progress';
-        $this->ensure_table_exists();
-    }
-
-    /**
-     * Ensure the progress table exists
-     */
-    private function ensure_table_exists() {
-        global $wpdb;
-
-        // Check if table exists
-        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$this->table_name}'") === $this->table_name;
-
-        if (!$table_exists) {
-            // Create the table if it doesn't exist
-            \MCDS\Installer::create_progress_table();
-        }
     }
 
     /**
