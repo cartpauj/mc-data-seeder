@@ -8,16 +8,16 @@ namespace MCDS;
 class Installer {
 
     /**
-     * Run on plugin activation
+     * Create the progress table
      */
-    public static function activate() {
+    public static function create_progress_table() {
         global $wpdb;
 
         $charset_collate = $wpdb->get_charset_collate();
         $table_name = $wpdb->prefix . 'mcds_progress';
 
         // Create progress tracking table
-        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+        $sql = "CREATE TABLE $table_name (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             seeder_key varchar(191) NOT NULL,
             total int(11) NOT NULL DEFAULT 0,
@@ -35,6 +35,13 @@ class Installer {
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
+    }
+
+    /**
+     * Run on plugin activation
+     */
+    public static function activate() {
+        self::create_progress_table();
 
         // Set plugin version
         update_option('mcds_version', MCDS_VERSION);
