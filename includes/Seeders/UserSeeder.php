@@ -305,7 +305,8 @@ class UserSeeder extends AbstractSeeder {
      * Subscriptions depend on users, so resetting users should also reset subscriptions
      */
     public function get_dependents() {
-        return ['membercore_subscriptions'];
+        $prefix = \MCDS\PluginConfig::get_prefix();
+        return [$prefix . '_subscriptions'];
     }
 
     /**

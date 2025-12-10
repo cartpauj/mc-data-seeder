@@ -133,13 +133,16 @@ class SubscriptionSeeder extends AbstractSeeder {
         }
 
         // Check if seeded memberships exist
+        $membership_seeder_key = $this->get_membership_seeder_key();
+        $product_post_type = \MCDS\PluginConfig::get_post_type('product');
+
         $seeded_memberships_count = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(DISTINCT post_id) FROM {$wpdb->postmeta}
              WHERE meta_key = %s AND meta_value = %s
              AND post_id IN (SELECT ID FROM {$wpdb->posts} WHERE post_type = %s AND post_status = %s)",
             '_mcds_seeder_key',
-            'membercore_memberships',
-            'membercoreproduct',
+            $membership_seeder_key,
+            $product_post_type,
             'publish'
         ));
 
