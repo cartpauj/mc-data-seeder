@@ -254,6 +254,18 @@ class MembershipSeeder extends AbstractSeeder {
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, \MCDS\PluginConfig::get_meta_key('group_pricing_page_disabled'), '0');
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, \MCDS\PluginConfig::get_meta_key('group_disable_change_plan_popup'), '0');
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, \MCDS\PluginConfig::get_meta_key('group_theme'), 'minimal_gray_horizontal.css');
+
+                // Add group page style options (serialized array)
+                $style_options = serialize([
+                    'layout'       => 'meco-vertical',
+                    'style'        => 'meco-gray',
+                    'button_size'  => 'meco-medium',
+                    'bullet_style' => 'meco-circles',
+                    'font_style'   => 'custom',
+                    'font_size'    => 'custom',
+                    'button_color' => 'meco-button-gray',
+                ]);
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $group_id, \MCDS\PluginConfig::get_meta_key('group_page_style_options'), $style_options);
             }
         }
 
@@ -296,13 +308,19 @@ class MembershipSeeder extends AbstractSeeder {
                     \MCDS\PluginConfig::get_post_type('product')
                 );
 
+                // Determine if this tier should be highlighted
+                // For 3-tier: highlight middle (index 1)
+                // For 4-tier: highlight 3rd tier (index 2)
+                $is_highlighted = ($tier_count === 3 && $tier_index === 1) || ($tier_count === 4 && $tier_index === 2);
+
                 // Store pricing info to add as meta after insert
                 $group_memberships[] = [
                     'group_id' => $group_id,
                     'order' => $tier_index,
                     'price' => $pricing['price'],
                     'period' => $pricing['period'],
-                    'period_type' => $pricing['period_type']
+                    'period_type' => $pricing['period_type'],
+                    'is_highlighted' => $is_highlighted
                 ];
             }
         }
@@ -374,6 +392,10 @@ class MembershipSeeder extends AbstractSeeder {
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_period'), $membership['period']);
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_period_type'), $membership['period_type']);
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_signup_button_text'), 'Sign Up');
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_pricing_button_text'), 'Sign Up');
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_is_highlighted'), $membership['is_highlighted'] ? '1' : '0');
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_pricing_display'), 'auto');
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_pricing_button_position'), 'footer');
                 $meta_values[] = $wpdb->prepare("(%d, %s, %d)", $current_id, \MCDS\PluginConfig::get_meta_key('group_id'), $membership['group_id']);
                 $meta_values[] = $wpdb->prepare("(%d, %s, %d)", $current_id, \MCDS\PluginConfig::get_meta_key('group_order'), $membership['order']);
                 $current_id++;
@@ -387,6 +409,10 @@ class MembershipSeeder extends AbstractSeeder {
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_period'), $membership['period']);
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_period_type'), $membership['period_type']);
                 $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_signup_button_text'), 'Sign Up');
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_pricing_button_text'), 'Sign Up');
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_is_highlighted'), '0');
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_pricing_display'), 'auto');
+                $meta_values[] = $wpdb->prepare("(%d, %s, %s)", $current_id, \MCDS\PluginConfig::get_meta_key('product_pricing_button_position'), 'footer');
                 $meta_values[] = $wpdb->prepare("(%d, %s, %d)", $current_id, \MCDS\PluginConfig::get_meta_key('group_id'), 0);
                 $meta_values[] = $wpdb->prepare("(%d, %s, %d)", $current_id, \MCDS\PluginConfig::get_meta_key('group_order'), 0);
                 $current_id++;
